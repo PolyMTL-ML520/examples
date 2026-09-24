@@ -1,0 +1,17 @@
+# 5s scrape interval everywhere: the SDK exports every 5s (see
+# OTEL_METRIC_EXPORT_INTERVAL), so scraping slower would just add stale-looking gaps.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  # inferapi's own metrics, translated from OTLP, the ones the Grafana dashboard reads.
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otel-collector:8889"]
+
+  # The Collector's own health, not the app's.
+  # Useful for confirming the ingestion pipeline itself is alive.
+  - job_name: otel-collector-internal
+    static_configs:
+      - targets: ["otel-collector:8888"]

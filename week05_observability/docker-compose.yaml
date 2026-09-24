@@ -1,0 +1,137 @@
+services:
+  trainer:
+    build:
+      context: ./app
+      args:
+        BUILD_SHA: local-dev
+    image: ml520-w05-inferapi:local
+    volumes:
+      - model-data:/model
+      - ../data:/data:ro
+    command: ["python", "train.py"]
+    deploy:
+      resources:
+        reservations:
+          cpus: 2
+          memory: 1024M
+        limits:
+          memory: 2G
+
+  inferapi:
+    build:
+      context: ./app
+      args:
+        BUILD_SHA: local-dev
+    image: ml520-w05-inferapi:local
+    depends_on:
+      trainer:
+        condition: service_completed_successfully
+    volumes:
+      - model-data:/model:ro
+    init: true
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_METRIC_EXPORT_INTERVAL: "5000"
+      OTEL_SEMCONV_STABILITY_OPT_IN: http
+      OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: /metrics,/healthz
+      # CHANGE THIS TO SIMULATE TRAFFIC
+      ML520_METRICS_EXPORT: oxxxtlp2
+      ML520_SIMULATE_WORK_MS: "250"
+    ports:
+      - "127.0.0.1:8080-8088:8080"
+    deploy:
+      # CHANGE THIS TO CHANGE PERFORMANCE PROFILE
+      resources:
+        reservations:
+          cpus: 1
+          memory: 512M
+        limits:
+          cpus: 4
+          memory: 512M
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  ########################################
+  # LOAD GENERATORS
+  ########################################
+  loadgen:
+    image: ml520-w05-inferapi:local
+    depends_on:
+      trainer:
+        condition: service_completed_successfully
+      inferapi:
+        condition: service_healthy
+    init: true
+    environment:
+      TARGET_URL: http://inferapi:8080/v1/predict
+      REQUEST_INTERVAL_SECONDS: "0.15"
+      BAD_PAYLOAD_FRACTION: "0.05"
+    command: ["python", "loadgen.py"]
+  
+  # Another load generator, with siege
+  siege:
+    deploy:
+      replicas: 0
+    image: jstarcher/siege
+    volumes:
+      - ./scripts:/opt/scripts
+    # entrypoint: ["/opt/scripts/siege.sh", "inferapi", "8080"]
+    command:
+      - siege
+      # Change this value to up the number of users
+      - --concurrent=25
+      - --benchmark
+      - -H
+      - "Content-Type: application/json"
+      - 'http://inferapi:8080/v1/predict POST < /opt/scripts/payload.json'
+
+  ########################################
+  # OBSERVABILITY STACK
+  ########################################
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    volumes:
+      - ./deploy/o11y/otel-collector/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:8888:8888"
+      - "127.0.0.1:8889:8889"
+    deploy:
+      resources:
+        reservations:
+          memory: 128M
+        limits:
+          cpus: 2
+          memory: 512M
+  prometheus:
+    # image: prom/prometheus:v2.55.1
+    image: prom/prometheus:v3.13.3
+    volumes:
+      - ./deploy/o11y/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      - otel-collector
+
+  grafana:
+    image: grafana/grafana:13.0
+    environment:
+      # Anonymous admin access: this is a throwaway teaching stack on localhost,
+      # never a pattern to carry into a real deployment.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./deploy/o11y/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  model-data:

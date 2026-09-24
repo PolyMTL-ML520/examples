@@ -1,0 +1,45 @@
+# Only http is enabled because inferapi's exporters are the proto-http variants, not grpc.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+  # 1. Memory limiter should be first to handle load shedding
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 20
+  probabilistic_sampler:
+    sampling_percentage: 20.0
+
+exporters:
+  # This is the endpoint prometheus.yaml scrapes as the otel-collector job.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+  # No trace backend exists in this stack, so spans just print to the container logs.
+  debug:
+    verbosity: detailed
+
+service:
+  # The Collector's own metrics (otelcol_*) live here, separate from the app metrics on 8889.
+  # prometheus.yaml scrapes this as the otel-collector-internal job.
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, probabilistic_sampler, batch]
+      exporters: [debug]

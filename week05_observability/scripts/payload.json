@@ -1,0 +1,22 @@
+{
+    "age": 24,
+    "job": "services",
+    "marital": "married",
+    "education": "high.school",
+    "default": "no",
+    "housing": "no",
+    "loan": "no",
+    "contact": "telephone",
+    "month": "may",
+    "day_of_week": "mon",
+    "campaign": 123,
+    "pdays": 0,
+    "previous": 0,
+    "poutcome": "nonexistent",
+    "duration": 5,
+    "emp.var.rate": 1.3,
+    "cons.price.idx": -90,
+    "cons.conf.idx": -20,
+    "euribor3m": 4.5,
+    "nr.employed": 5000
+}

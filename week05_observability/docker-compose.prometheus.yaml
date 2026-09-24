@@ -1,0 +1,18 @@
+# Overlay file to have inferapi be in prometheus mode
+#
+# Run with:
+#   docker compose -f docker-compose.yaml -f docker-compose.prometheus.yaml up
+#
+# Then curl http://localhost:8080/metrics directly.
+#
+# This override does not rewire the compose Prometheus to scrape inferapi:
+# the point here is the app-side switch, not another scrape target
+# so verify this mode with curl rather than through Grafana.
+#
+# If you want, you can change the prometheus job to point to the instances,
+# But then you'd need to create the targets _for each replica_
+# Having the OTEL Collector be the central point avoids this
+services:
+  inferapi:
+    environment:
+      METRICS_EXPORT: prometheus
