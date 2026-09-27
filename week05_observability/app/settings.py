@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     #   Set at image build time via `--build-arg BUILD_SHA`, see app/Dockerfile.
     build_sha: str = "dev"
 
+
+    # How often to push to the collector
+    otel_metric_export_interval: int = 5000
+
     # GENAI COMMENT:
     #   "otlp" pushes to the Collector, "prometheus"
     #   serves /metrics in-process.

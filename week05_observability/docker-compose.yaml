@@ -35,7 +35,7 @@ services:
       OTEL_SEMCONV_STABILITY_OPT_IN: http
       OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: /metrics,/healthz
       # CHANGE THIS TO SIMULATE TRAFFIC
-      ML520_METRICS_EXPORT: oxxxtlp2
+      ML520_METRICS_EXPORT: otlp
       ML520_SIMULATE_WORK_MS: "250"
     ports:
       - "127.0.0.1:8080-8088:8080"
@@ -76,7 +76,7 @@ services:
   # Another load generator, with siege
   siege:
     deploy:
-      replicas: 0
+      replicas: 1
     image: jstarcher/siege
     volumes:
       - ./scripts:/opt/scripts
