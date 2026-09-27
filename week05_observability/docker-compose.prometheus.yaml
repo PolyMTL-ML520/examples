@@ -15,4 +15,4 @@
 services:
   inferapi:
     environment:
-      METRICS_EXPORT: prometheus
+      ML520_METRICS_EXPORT: prometheus
